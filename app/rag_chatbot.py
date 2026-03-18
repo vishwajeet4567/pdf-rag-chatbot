@@ -187,7 +187,7 @@ def chunk_text(text: str, source: str, page: int) -> list[dict]:
 @st.cache_resource(show_spinner=False)
 def get_gemini_model(api_key: str):
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-1.5-flash")
+    return genai.GenerativeModel("gemini-1.5-flash-latest")
 
 def generate_answer(model, question: str, context_chunks: list[dict]) -> str:
     """Build a RAG prompt and call Gemini to generate an answer."""
