@@ -12,7 +12,7 @@ import uuid
 import hashlib
 import streamlit as st
 import pdfplumber
-import google.generativeai as genai
+from google import genai
 from sentence_transformers import SentenceTransformer
 from endee import Endee, Precision
 
@@ -126,14 +126,29 @@ def get_endee_index():
     client.set_base_url(ENDEE_URL)
 
     # Create index only if it doesn't exist yet
-    existing = [idx.name for idx in client.list_indexes()]
-    if INDEX_NAME not in existing:
+    result = client.list_indexes()
+    # SDK returns {"indexes": [...]}
+    indices = result.get("indexes", result) if isinstance(result, dict) else result
+    
+    index_names = []
+    for idx in indices:
+        if isinstance(idx, str):
+            index_names.append(idx)
+        elif isinstance(idx, dict):
+            index_names.append(idx.get("name", ""))
+        else:
+            index_names.append(getattr(idx, "name", ""))
+
+    if INDEX_NAME not in index_names:
         client.create_index(
-            name=INDEX_NAME,
-            dimension=EMBED_DIM,
-            space_type="cosine",
-            precision=Precision.INT8,   # INT8 quantisation for speed
-        )
+    name=str(INDEX_NAME),
+    dimension=int(EMBED_DIM),
+    space_type=str("cosine"),
+    precision=str("int8"),
+    M=str(16),
+    ef_con=str(128),
+)        # Required by newer SDK
+        
     return client.get_index(name=INDEX_NAME)
 
 # ──────────────────────────────────────────────────────────────
@@ -231,13 +246,26 @@ with st.sidebar:
                 client.set_base_url(endee_url)
 
                 # Create or retrieve index
-                existing = [idx.name for idx in client.list_indexes()]
-                if INDEX_NAME not in existing:
+                result = client.list_indexes()
+                indices = result.get("indexes", result) if isinstance(result, dict) else result
+                
+                index_names = []
+                for idx in indices:
+                    if isinstance(idx, str):
+                        index_names.append(idx)
+                    elif isinstance(idx, dict):
+                        index_names.append(idx.get("name", ""))
+                    else:
+                        index_names.append(getattr(idx, "name", ""))
+
+                if INDEX_NAME not in index_names:
                     client.create_index(
                         name=INDEX_NAME,
                         dimension=EMBED_DIM,
                         space_type="cosine",
-                        precision=Precision.INT8,
+                        precision="int8",
+                        M=16,
+                        ef_con=128,
                     )
                 index = client.get_index(name=INDEX_NAME)
 
