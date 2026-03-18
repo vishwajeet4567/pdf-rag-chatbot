@@ -1,5 +1,10 @@
 services:
   endee-oss:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+      args:
+        BUILD_ARCH: neon      # Apple Silicon (M1/M2/M3). Change to avx2 for Intel Mac
     image: endee-oss:latest
     container_name: endee-oss
     ports:

@@ -351,19 +351,23 @@ int main(int argc, char** argv) {
                     return json_error(400, "Invalid JSON");
                 }
 
-                if(!body.has("index_name") || !body.has("dim") || !body.has("space_type")) {
+                bool has_name = body.has("index_name") || body.has("name");
+                bool has_dim = body.has("dim") || body.has("dimension");
+
+                if(!has_name || !has_dim || !body.has("space_type")) {
                     LOG_WARN(1012, ctx.username, "Create-index request is missing required parameters");
-                    return json_error(400, "Missing required parameters");
+                    return json_error(400, "Missing required parameters (name/index_name, dim/dimension, space_type)");
                 }
 
                 // Format index_id as username/index_name
-                std::string index_id = ctx.username + "/" + std::string(body["index_name"].s());
+                std::string idx_name_val = body.has("index_name") ? std::string(body["index_name"].s()) : std::string(body["name"].s());
+                std::string index_id = ctx.username + "/" + idx_name_val;
 
                 // Get checksum (optional, for queryable encryption)
                 int32_t checksum = body.has("checksum") ? body["checksum"].i() : -1;
                 LOG_DEBUG("Checksum: " << checksum);
 
-                size_t dim = (size_t)body["dim"].i();
+                size_t dim = body.has("dim") ? (size_t)body["dim"].i() : (size_t)body["dimension"].i();
                 // Validate dimension
                 if(dim < settings::MIN_DIMENSION || dim > settings::MAX_DIMENSION) {
                     LOG_WARN(1013, index_id, "Invalid dimension: " << dim);
