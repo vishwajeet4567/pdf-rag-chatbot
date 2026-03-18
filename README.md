@@ -195,4 +195,3 @@ Apache License 2.0 — see [LICENSE](./LICENSE)
 
 ---
 
-*Built for the Endee.io Hiring Challenge — Tap Academy Placement Cell (TAP-JOB-ID-2458)*
