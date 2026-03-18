@@ -404,10 +404,22 @@ with col_main:
                     # Build context from results
                     context_chunks = []
                     for r in results:
+                        # Handle both object-style (r.id) and dict-style (r['id'])
+                        if hasattr(r, "id"):
+                            rid = r.id
+                            rsim = getattr(r, "similarity", 0.0)
+                            rmeta = getattr(r, "meta", {})
+                        elif isinstance(r, dict):
+                            rid = r.get("id", "")
+                            rsim = r.get("similarity", 0.0)
+                            rmeta = r.get("meta", {})
+                        else:
+                            continue
+                            
                         context_chunks.append({
-                            "id": r.id,
-                            "similarity": r.similarity,
-                            "meta": r.meta or {},
+                            "id": rid,
+                            "similarity": rsim,
+                            "meta": rmeta or {},
                         })
 
                     # Generate answer with Gemini
