@@ -12,7 +12,7 @@ import uuid
 import hashlib
 import streamlit as st
 import pdfplumber
-from google import genai
+import google.generativeai as genai
 from sentence_transformers import SentenceTransformer
 from endee import Endee, Precision
 
