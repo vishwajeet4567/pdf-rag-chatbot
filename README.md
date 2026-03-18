@@ -1,139 +1,198 @@
 <p align="center">
-  <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-      <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
-      <img height="100" alt="Endee" src="docs/assets/logo-dark.svg">
-  </picture>
+  <img src="docs/assets/logo-dark.svg" height="80" alt="Endee" />
 </p>
+
+<h1 align="center">PDF RAG Chatbot — powered by Endee Vector Database</h1>
 
 <p align="center">
-    <b>High-performance open-source vector database for AI search, RAG, semantic search, and hybrid retrieval.</b>
+  <img src="https://img.shields.io/badge/Vector_DB-Endee-a78bfa?style=flat-square" />
+  <img src="https://img.shields.io/badge/Embeddings-sentence--transformers-60a5fa?style=flat-square" />
+  <img src="https://img.shields.io/badge/LLM-Google_Gemini-34d399?style=flat-square" />
+  <img src="https://img.shields.io/badge/UI-Streamlit-ff4b4b?style=flat-square" />
+  <img src="https://img.shields.io/badge/License-Apache_2.0-yellow?style=flat-square" />
 </p>
 
-<p align="center">
-    <a href="./docs/getting-started.md"><img src="https://img.shields.io/badge/Quick_Start-Local_Setup-success?style=flat-square" alt="Quick Start"></a>
-    <a href="https://docs.endee.io/quick-start"><img src="https://img.shields.io/badge/Docs-Quick_Start-success?style=flat-square" alt="Docs"></a>
-    <a href="https://github.com/endee-io/endee/blob/master/LICENSE"><img src="https://img.shields.io/github/license/endee-io/endee?style=flat-square" alt="License"></a>
-    <a href="https://discord.gg/5HFGqDZQE3"><img src="https://img.shields.io/badge/Discord-Join_Chat-5865F2?logo=discord&style=flat-square" alt="Discord"></a>
-    <a href="https://endee.io/"><img src="https://img.shields.io/badge/Website-Endee-111111?style=flat-square" alt="Website"></a>
-    <!-- <a href="https://endee.io/benchmarks"><img src="https://img.shields.io/badge/Benchmarks-Coming_Soon-1F8B4C?style=flat-square" alt="Benchmarks"></a> -->
-    <!-- <a href="https://endee.io/cloud"><img src="https://img.shields.io/badge/Cloud-Coming_Soon-2496ED?style=flat-square" alt="Cloud"></a> -->
-</p>
+---
 
-<p align="center">
-<strong><a href="./docs/getting-started.md">Quick Start</a> • <a href="#why-endee">Why Endee</a> • <a href="#use-cases">Use Cases</a> • <a href="#features">Features</a> • <a href="#api-and-clients">API and Clients</a> • <a href="#docs-and-links">Docs</a> • <a href="#community-and-contact">Contact</a></strong>
-</p>
+## 📌 Project Overview
 
-# Endee: Open-Source Vector Database for AI Search
+This project is a **Retrieval-Augmented Generation (RAG) chatbot** that lets you upload any PDF document and ask natural-language questions about it. It uses:
 
-**Endee** is a high-performance open-source vector database built for AI search and retrieval workloads. It is designed for teams building **RAG pipelines**, **semantic search**, **hybrid search**, recommendation systems, and filtered vector retrieval APIs that need production-oriented performance and control.
+| Component | Technology |
+|-----------|-----------|
+| Vector Database | **Endee** (local, via Docker) |
+| Embeddings | `sentence-transformers` — `all-MiniLM-L6-v2` (384-dim, INT8 quantised) |
+| LLM / Answer Generation | **Google Gemini 1.5 Flash** (free tier) |
+| UI | **Streamlit** |
 
-Endee combines vector search with filtering, sparse retrieval support, backup workflows, and deployment flexibility across local builds and Docker-based environments. The project is implemented in C++ and optimized for modern CPU targets, including AVX2, AVX512, NEON, and SVE2.
+**Key highlights:**
+- Uses the official **Endee Python SDK** (`pip install endee`) for `create_index`, `upsert`, and `query`
+- INT8 quantisation via `Precision.INT8` for fast, memory-efficient retrieval
+- Cosine similarity search with `top_k=5` chunks per query
+- Source citations shown for every answer (file name + page number)
+- No OpenAI dependency — runs fully on free APIs
 
-If you want the fastest path to evaluate Endee locally, start with the [Getting Started guide](./docs/getting-started.md) or the hosted docs at [docs.endee.io](https://docs.endee.io/quick-start).
+---
 
-## Why Endee
+## 🏗️ System Design
 
-- Built as a dedicated vector database for AI applications, search systems, and retrieval-heavy workloads.
-- Supports dense vector retrieval plus sparse search capabilities for hybrid search use cases.
-- Includes payload filtering for metadata-aware retrieval and application-specific query logic.
-- Ships with operational features already documented in this repo, including backup flows and runtime observability.
-- Offers flexible deployment paths: local scripts, manual builds, Docker images, and prebuilt registry images.
-
-## Getting Started
-
-The full installation, build, Docker, runtime, and authentication instructions are in [docs/getting-started.md](./docs/getting-started.md).
-
-Fastest local path:
-
-```bash
-chmod +x ./install.sh ./run.sh
-./install.sh --release --avx2
-./run.sh
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Streamlit Frontend                          │
+│   Upload PDF │  Ask Question  │  View Answer + Source Citations  │
+└──────┬───────────────┬────────────────────────────┬─────────────┘
+       │               │                            │
+  [Indexing Flow]  [Query Flow]              [Answer Display]
+       │               │                            │
+       ▼               ▼                            │
+ pdfplumber        SentenceTransformer         Google Gemini
+ (extract text)    (embed question)            (generate answer)
+       │               │                            ▲
+       ▼               ▼                            │
+ Chunker           ┌───────────────────────┐        │
+ (400 chars,       │   Endee Vector DB     │────────┘
+  80 overlap)      │  (Docker, port 8080)  │  top-5 chunks + metadata
+       │           │                       │
+       │ upsert    │  Index: pdf_rag_index │
+       └──────────▶│  Space:  cosine       │
+  vectors +        │  Dim:    384          │
+  metadata         │  Prec:   INT8         │
+  {text, source,   └───────────────────────┘
+   page}
 ```
 
-The server listens on port `8080`. For detailed setup paths, supported operating systems, CPU optimization flags, Docker usage, and authentication examples, use:
+### Data Flow — Indexing
+1. User uploads PDF → `pdfplumber` extracts text page-by-page
+2. Text is split into 400-char chunks (80-char overlap)
+3. Each chunk is embedded with `all-MiniLM-L6-v2`
+4. Vectors + metadata (`text`, `source`, `page`) are upserted into Endee in batches of 64
 
-- [Getting Started](./docs/getting-started.md)
-- [Hosted Quick Start Docs](https://docs.endee.io/quick-start)
+### Data Flow — Querying
+1. User asks a question → embedded with the same model
+2. `index.query(vector=q_vec, top_k=5)` retrieves the 5 most similar chunks from Endee
+3. Chunks are injected into a RAG prompt sent to **Google Gemini 1.5 Flash**
+4. Answer is displayed in the chat UI with expandable source citations
 
-## Use Cases
+---
 
-### RAG and AI Retrieval
+## ⚙️ How Endee is Used
 
-Use Endee as the retrieval layer for question answering, chat assistants, copilots, and other RAG applications that need fast vector search with metadata-aware filtering.
+```python
+from endee import Endee, Precision
 
-### Agentic AI and AI Agent Memory
+# Connect to local Endee server
+client = Endee()
+client.set_base_url("http://localhost:8080/api/v1")
 
-Use Endee as the long-term memory and context retrieval layer for AI agents built with frameworks like LangChain, CrewAI, AutoGen, and LlamaIndex. Store and retrieve past observations, tool outputs, conversation history, and domain knowledge mid-execution with low-latency filtered vector search, so your autonomous agents get the right context without stalling their reasoning loop.
+# Create a cosine-similarity index with INT8 quantisation
+client.create_index(
+    name="pdf_rag_index",
+    dimension=384,
+    space_type="cosine",
+    precision=Precision.INT8,       # INT8 for fast, memory-efficient retrieval
+)
 
-### Semantic Search
+# Get the index handle
+index = client.get_index(name="pdf_rag_index")
 
-Build semantic search experiences for documents, products, support content, and knowledge bases using vector similarity search instead of exact keyword-only matching.
+# Upsert document chunks with metadata
+index.upsert([
+    {
+        "id": "chunk_001",
+        "vector": [...],            # 384-dim embedding
+        "meta": {"text": "...", "source": "doc.pdf", "page": 1}
+    }
+])
 
-### Hybrid Search
+# Retrieve top-5 similar chunks for a query
+results = index.query(vector=[...], top_k=5)
+for r in results:
+    print(r.id, r.similarity, r.meta)
+```
 
-Combine dense retrieval, sparse vectors, and filtering to improve relevance for search workflows where both semantic understanding and term-level precision matter.
+---
 
-### Recommendations and Matching
+## 🚀 Setup Instructions
 
-Support recommendation, similarity matching, and nearest-neighbor retrieval workflows across text, embeddings, and other high-dimensional representations.
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- Python 3.10+
+- Free Gemini API key — get one at [ai.google.dev](https://ai.google.dev)
 
-## Features
+### Step 1 — Start Endee Locally
 
-- **Vector search** for AI retrieval and semantic similarity workloads.
-- **Hybrid retrieval support** with sparse vector capabilities documented in [docs/sparse.md](./docs/sparse.md).
-- **Payload filtering** for structured retrieval logic documented in [docs/filter.md](./docs/filter.md).
-- **Backup APIs and flows** documented in [docs/backup-system.md](./docs/backup-system.md).
-- **Operational logging and instrumentation** documented in [docs/logs.md](./docs/logs.md) and [docs/mdbx-instrumentation.md](./docs/mdbx-instrumentation.md).
-- **CPU-targeted builds** for AVX2, AVX512, NEON, and SVE2 deployments.
-- **Docker deployment options** for local and server environments.
+```bash
+# From the repo root
+docker compose up -d
+```
 
-## API and Clients
+Verify Endee is running:
+```bash
+curl http://localhost:8080/health
+# Expected: {"status":"ok"}
+```
 
-Endee exposes an HTTP API for managing indexes and serving retrieval workloads. The current repo documentation and examples focus on running the server directly and calling its API endpoints.
+### Step 2 — Install Python Dependencies
 
-Current developer entry points:
+```bash
+pip install -r app/requirements.txt
+```
 
-- [Getting Started](./docs/getting-started.md) for local build and run flows
-- [Hosted Docs](https://docs.endee.io/quick-start) for product documentation
-- [Release Notes 1.0.0](https://github.com/endee-io/endee/releases/tag/1.0.0) for recent platform changes
+### Step 3 — Set Your Gemini API Key
 
-## Docs and Links
+```bash
+export GEMINI_API_KEY="AIza..."
+```
 
-- [Getting Started](./docs/getting-started.md)
-- [Hosted Documentation](https://docs.endee.io/quick-start)
-- [Release Notes](https://github.com/endee-io/endee/releases/tag/1.0.0)
-- [Sparse Search](./docs/sparse.md)
-- [Filtering](./docs/filter.md)
-- [Backups](./docs/backup-system.md)
+Or enter it directly in the sidebar when the app opens.
 
-## Community and Contact
+### Step 4 — Run the App
 
-- Join the community on [Discord](https://discord.gg/5HFGqDZQE3)
-- Visit the website at [endee.io](https://endee.io/)
-- For trademark or branding permissions, contact [enterprise@endee.io](mailto:enterprise@endee.io)
+```bash
+streamlit run app/rag_chatbot.py
+```
 
-## Contributing
+Open [http://localhost:8501](http://localhost:8501) in your browser.
 
-We welcome contributions from the community to help make vector search faster and more accessible for everyone.
+### Step 5 — Use the Chatbot
 
-- Submit pull requests for fixes, features, and improvements
-- Report bugs or performance issues through GitHub issues
-- Propose enhancements for search quality, performance, and deployment workflows
+1. Paste your Gemini API key in the sidebar (if not set via env)
+2. Upload one or more PDF files
+3. Click **Index Documents** — chunks are embedded and stored in Endee
+4. Type a question in the chat box
+5. The app retrieves the top-5 relevant chunks from Endee and generates an answer with Gemini
 
-## License
+---
 
-Endee is open source software licensed under the **Apache License 2.0**. See the [LICENSE](./LICENSE) file for full terms.
+## 📁 Project Structure
 
-## Trademark and Branding
+```
+pdf-rag-chatbot/
+├── app/
+│   ├── rag_chatbot.py      ← Main Streamlit app (RAG logic + UI)
+│   └── requirements.txt    ← Python dependencies
+├── docker-compose.yml      ← Runs Endee locally (port 8080)
+├── docs/                   ← Endee documentation
+└── README.md               ← This file
+```
 
-“Endee” and the Endee logo are trademarks of Endee Labs.
+---
 
-The Apache License 2.0 does not grant permission to use the Endee name, logos, or branding in a way that suggests endorsement or affiliation.
+## 🌟 Features
 
-If you offer a hosted or managed service based on this software, you must use your own branding and avoid implying it is an official Endee service.
+- ✅ **Multi-PDF support** — index multiple PDFs and ask across all of them
+- ✅ **Source citations** — every answer shows the source file and page number
+- ✅ **INT8 quantisation** — uses Endee's `Precision.INT8` for efficient storage
+- ✅ **Overlapping chunks** — 80-char overlap preserves context at chunk boundaries
+- ✅ **Persistent index** — Endee persists data across restarts via Docker volumes
+- ✅ **No OpenAI needed** — uses free Google Gemini API
 
-## Third-Party Software
+---
 
-This project includes or depends on third-party software components licensed under their respective open-source licenses. Use of those components is governed by their own license terms.
+## 📝 License
+
+Apache License 2.0 — see [LICENSE](./LICENSE)
+
+---
+
+*Built for the Endee.io Hiring Challenge — Tap Academy Placement Cell (TAP-JOB-ID-2458)*
