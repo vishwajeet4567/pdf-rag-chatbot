@@ -141,13 +141,13 @@ def get_endee_index():
 
     if INDEX_NAME not in index_names:
         client.create_index(
-    name=str(INDEX_NAME),
-    dimension=int(EMBED_DIM),
-    space_type=str("cosine"),
-    precision=str("int8"),
-    M=str(16),
-    ef_con=str(128),
-)        # Required by newer SDK
+            name=INDEX_NAME,
+            dimension=EMBED_DIM,
+            space_type="cosine",
+            precision="int8",
+            M=16,
+            ef_con=128,
+        )
         
     return client.get_index(name=INDEX_NAME)
 
